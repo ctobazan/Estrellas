@@ -1,0 +1,1402 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>El Cielo de María — 20 de Marzo, 1998</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --sky-deep:    #020510;
+    --sky-mid:     #050c1f;
+    --sky-horizon: #0a1535;
+    --gold:        #c9a84c;
+    --gold-soft:   #e8d49a;
+    --silver:      #a8b8d0;
+    --white:       #eef2f8;
+    --accent:      #4a7fa5;
+    --text-dim:    #5a6a80;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: var(--sky-deep);
+    color: var(--white);
+    font-family: 'Cormorant Garamond', serif;
+    overflow-x: hidden;
+  }
+
+  /* ── CANVAS SKY ── */
+  #sky-canvas {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 0;
+  }
+
+  /* ── NOISE GRAIN ── */
+  .grain {
+    position: fixed;
+    inset: 0; z-index: 1;
+    pointer-events: none;
+    opacity: 0.03;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-size: 150px 150px;
+  }
+
+  /* ── LAYOUT ── */
+  .page {
+    position: relative; z-index: 2;
+    min-height: 100vh;
+    display: flex; flex-direction: column;
+    align-items: center;
+    padding: 0 1.5rem;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    text-align: center;
+    padding-top: 4rem;
+    opacity: 0;
+    animation: fadeUp 1.8s ease forwards 0.5s;
+  }
+
+  .label-small {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.62rem;
+    letter-spacing: 0.25em;
+    color: var(--gold);
+    text-transform: uppercase;
+    margin-bottom: 1.2rem;
+  }
+
+  .title-main {
+    font-size: clamp(2.8rem, 8vw, 5.5rem);
+    font-weight: 300;
+    line-height: 1.05;
+    letter-spacing: -0.01em;
+    color: var(--white);
+  }
+
+  .title-main em {
+    font-style: italic;
+    color: var(--gold-soft);
+  }
+
+  .subtitle {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.18em;
+    color: var(--silver);
+    margin-top: 1rem;
+    opacity: 0.7;
+  }
+
+  /* ── DIVIDER ── */
+  .divider {
+    width: 1px;
+    height: 4rem;
+    background: linear-gradient(to bottom, transparent, var(--gold), transparent);
+    margin: 2.5rem auto;
+    opacity: 0;
+    animation: fadeIn 1s ease forwards 1.5s;
+  }
+
+  /* ── SKY WINDOW ── */
+  .sky-window-wrap {
+    width: 100%;
+    max-width: 680px;
+    opacity: 0;
+    animation: fadeUp 1.8s ease forwards 1s;
+  }
+
+  .sky-window-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.58rem;
+    letter-spacing: 0.2em;
+    color: var(--gold);
+    text-align: right;
+    margin-bottom: 0.5rem;
+    opacity: 0.7;
+  }
+
+  .sky-window {
+    width: 100%;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(201, 168, 76, 0.25);
+    box-shadow:
+      0 0 0 6px rgba(2, 5, 16, 0.9),
+      0 0 0 7px rgba(201, 168, 76, 0.15),
+      0 0 60px rgba(74, 127, 165, 0.15),
+      inset 0 0 80px rgba(2, 5, 16, 0.6);
+  }
+
+  #star-map {
+    width: 100%; height: 100%;
+    display: block;
+  }
+
+  /* ── CONSTELLATION TOOLTIP ── */
+  #tooltip {
+    position: fixed;
+    background: rgba(5, 12, 31, 0.92);
+    border: 1px solid rgba(201, 168, 76, 0.3);
+    padding: 0.6rem 1rem;
+    border-radius: 4px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+    z-index: 100;
+    max-width: 200px;
+  }
+  #tooltip .tt-name {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--gold);
+    letter-spacing: 0.1em;
+  }
+  #tooltip .tt-desc {
+    font-size: 0.85rem;
+    color: var(--silver);
+    margin-top: 0.2rem;
+    font-style: italic;
+    line-height: 1.3;
+  }
+
+  /* ── DATA STRIP ── */
+  .data-strip {
+    width: 100%;
+    max-width: 680px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: rgba(201, 168, 76, 0.1);
+    border: 1px solid rgba(201, 168, 76, 0.1);
+    margin-top: 1rem;
+    opacity: 0;
+    animation: fadeUp 1.5s ease forwards 1.4s;
+  }
+
+  .data-cell {
+    background: rgba(2, 5, 16, 0.8);
+    padding: 1rem;
+    text-align: center;
+  }
+
+  .data-cell .val {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--gold-soft);
+    display: block;
+  }
+
+  .data-cell .key {
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+    margin-top: 0.25rem;
+    display: block;
+    font-style: italic;
+  }
+
+  /* ── MESSAGE SECTION ── */
+  .message-section {
+    width: 100%;
+    max-width: 580px;
+    margin: 3rem auto;
+    opacity: 0;
+    animation: fadeUp 1.5s ease forwards 1.8s;
+  }
+
+  .message-section .msg-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.58rem;
+    letter-spacing: 0.25em;
+    color: var(--gold);
+    text-transform: uppercase;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .message-section .msg-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(to right, rgba(201,168,76,0.3), transparent);
+  }
+
+  /* EDITABLE MESSAGE */
+  .msg-body {
+    font-size: clamp(1.05rem, 2.5vw, 1.25rem);
+    line-height: 1.85;
+    color: var(--silver);
+    font-weight: 300;
+    white-space: pre-wrap;
+    outline: none;
+    min-height: 6rem;
+    cursor: text;
+    transition: color 0.3s;
+    border-left: 2px solid transparent;
+    padding-left: 1.2rem;
+  }
+
+  .msg-body:focus {
+    color: var(--white);
+    border-left-color: rgba(201, 168, 76, 0.4);
+  }
+
+  .msg-body .highlight {
+    color: var(--gold-soft);
+    font-style: italic;
+  }
+
+  .edit-hint {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.55rem;
+    color: var(--text-dim);
+    letter-spacing: 0.15em;
+    margin-top: 1rem;
+    opacity: 0;
+    transition: opacity 0.3s;
+    display: flex; align-items: center; gap: 0.5rem;
+  }
+
+  .edit-hint::before {
+    content: '✎';
+    color: var(--gold);
+  }
+
+  .msg-body:focus ~ .edit-hint { opacity: 1; }
+
+  /* ── PLANET SECTION ── */
+  .planets-section {
+    width: 100%;
+    max-width: 680px;
+    margin: 1rem auto 2rem;
+    opacity: 0;
+    animation: fadeUp 1.5s ease forwards 2.1s;
+  }
+
+  .section-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.58rem;
+    letter-spacing: 0.25em;
+    color: var(--gold);
+    text-transform: uppercase;
+    margin-bottom: 1.2rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(to right, rgba(201,168,76,0.3), transparent);
+  }
+
+  .planets-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 1px;
+    background: rgba(201, 168, 76, 0.08);
+    border: 1px solid rgba(201, 168, 76, 0.08);
+  }
+
+  .planet-card {
+    background: rgba(2, 5, 16, 0.85);
+    padding: 1rem 1.2rem;
+  }
+
+  .planet-card .p-symbol {
+    font-size: 1.4rem;
+    display: block;
+    margin-bottom: 0.3rem;
+  }
+
+  .planet-card .p-name {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.6rem;
+    color: var(--gold);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .planet-card .p-pos {
+    font-size: 0.8rem;
+    color: var(--silver);
+    margin-top: 0.15rem;
+    font-style: italic;
+  }
+
+  .planet-card .p-note {
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    margin-top: 0.3rem;
+    line-height: 1.3;
+  }
+
+  /* ── FOOTER ── */
+  .footer {
+    width: 100%;
+    max-width: 680px;
+    padding: 2rem 0 3rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid rgba(201, 168, 76, 0.1);
+    margin-top: 2rem;
+    opacity: 0;
+    animation: fadeIn 1.5s ease forwards 2.5s;
+  }
+
+  .footer-sig {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    font-style: italic;
+  }
+
+  .footer-coords {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.55rem;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+    text-align: right;
+  }
+
+  /* ── ANIMATIONS ── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(18px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  /* ── MODAL ── */
+  #story-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+
+  #story-modal.open {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  #modal-backdrop, .modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(2, 5, 16, 0.85);
+    backdrop-filter: blur(6px);
+    cursor: pointer;
+  }
+
+  .modal-box {
+    position: relative;
+    background: #060e22;
+    border: 1px solid rgba(201, 168, 76, 0.25);
+    max-width: 520px;
+    width: 100%;
+    padding: 2.5rem 2.5rem 2rem;
+    box-shadow:
+      0 0 60px rgba(74, 127, 165, 0.12),
+      0 0 0 1px rgba(201, 168, 76, 0.05);
+    transform: translateY(12px);
+    transition: transform 0.35s ease;
+  }
+
+  #story-modal.open .modal-box {
+    transform: translateY(0);
+  }
+
+  .modal-close {
+    position: absolute;
+    top: 1rem; right: 1.2rem;
+    background: rgba(201, 168, 76, 0.08);
+    border: 1px solid rgba(201, 168, 76, 0.3);
+    color: var(--gold-soft);
+    font-size: 1rem;
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.2s;
+    line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Space Mono', monospace;
+  }
+  .modal-close:hover {
+    background: rgba(201, 168, 76, 0.18);
+    border-color: var(--gold);
+    color: var(--white);
+    transform: scale(1.08);
+  }
+
+  /* Bottom close bar inside modal */
+  .modal-close-bar {
+    display: flex;
+    justify-content: center;
+    margin-top: 1.8rem;
+    padding-top: 1.2rem;
+    border-top: 1px solid rgba(201, 168, 76, 0.1);
+  }
+
+  .modal-close-btn {
+    background: none;
+    border: 1px solid rgba(201, 168, 76, 0.25);
+    color: var(--text-dim);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    padding: 0.55rem 1.8rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .modal-close-btn:hover {
+    border-color: var(--gold);
+    color: var(--gold-soft);
+    background: rgba(201, 168, 76, 0.05);
+  }
+
+  .modal-tag {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.55rem;
+    letter-spacing: 0.25em;
+    color: var(--gold);
+    text-transform: uppercase;
+    margin-bottom: 0.6rem;
+  }
+
+  .modal-const-name {
+    font-size: clamp(1.8rem, 5vw, 2.6rem);
+    font-weight: 300;
+    line-height: 1.1;
+    color: var(--white);
+    margin-bottom: 0.3rem;
+  }
+
+  .modal-const-name em {
+    font-style: italic;
+    color: var(--gold-soft);
+  }
+
+  .modal-stars-list {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.6rem;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+    margin-bottom: 1.5rem;
+  }
+
+  .modal-divider {
+    width: 40px;
+    height: 1px;
+    background: linear-gradient(to right, var(--gold), transparent);
+    margin-bottom: 1.5rem;
+  }
+
+  .modal-story {
+    font-size: 1.05rem;
+    line-height: 1.85;
+    color: var(--silver);
+    font-weight: 300;
+  }
+
+  .modal-story p + p {
+    margin-top: 0.9rem;
+  }
+
+  .modal-story strong {
+    color: var(--gold-soft);
+    font-weight: 400;
+  }
+
+  .modal-footnote {
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(201, 168, 76, 0.1);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.58rem;
+    color: var(--text-dim);
+    letter-spacing: 0.08em;
+  }
+
+  /* click hint under star map */
+  .sky-window-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .sky-click-hint {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.55rem;
+    color: var(--text-dim);
+    letter-spacing: 0.12em;
+  }
+
+  /* Piscis hidden badge */
+  .piscis-note {
+    width: 100%;
+    max-width: 680px;
+    margin-top: 0.6rem;
+    padding: 0.7rem 1rem;
+    background: rgba(201, 168, 76, 0.04);
+    border-left: 2px solid rgba(201, 168, 76, 0.3);
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    font-style: italic;
+    opacity: 0;
+    animation: fadeIn 1s ease forwards 1.5s;
+  }
+  .piscis-note strong { color: var(--gold-soft); font-style: normal; font-weight: 400; }
+
+  /* ── MODAL BACKDROP ── */
+  #modal-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(2, 5, 16, 0.85);
+    backdrop-filter: blur(4px);
+    z-index: 200;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.35s ease;
+  }
+
+  /* ── MODAL PANEL ── */
+  #story-modal {
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -48%) scale(0.97);
+    width: min(680px, 92vw);
+    max-height: 80vh;
+    overflow-y: auto;
+    background: #060d1e;
+    border: 1px solid rgba(201, 168, 76, 0.2);
+    box-shadow: 0 0 80px rgba(74, 127, 165, 0.12), 0 30px 80px rgba(0,0,0,0.7);
+    z-index: 201;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.35s ease, transform 0.35s ease;
+    padding: 2.5rem 2.8rem 2.5rem;
+  }
+
+  #story-modal.open {
+    opacity: 1; pointer-events: all;
+    transform: translate(-50%, -50%) scale(1);
+  }
+
+  #modal-backdrop.open {
+    opacity: 1; pointer-events: all;
+  }
+
+  .modal-top {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    margin-bottom: 1.5rem;
+  }
+
+  .modal-tag {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.58rem; letter-spacing: 0.22em;
+    color: var(--gold); text-transform: uppercase;
+    margin-bottom: 0.5rem;
+  }
+
+  .modal-const-name {
+    font-size: clamp(1.8rem, 5vw, 2.8rem);
+    font-weight: 300; line-height: 1;
+    color: var(--white);
+  }
+
+  #modal-close {
+    background: none; border: 1px solid rgba(201,168,76,0.2);
+    color: var(--text-dim); cursor: pointer;
+    width: 32px; height: 32px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem; flex-shrink: 0; margin-left: 1rem;
+    transition: all 0.2s; font-family: 'Space Mono', monospace;
+  }
+  #modal-close:hover { border-color: var(--gold); color: var(--gold); }
+
+  .modal-stars {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.6rem; color: var(--text-dim);
+    letter-spacing: 0.12em; margin-bottom: 1.8rem;
+    padding-bottom: 1.2rem;
+    border-bottom: 1px solid rgba(201,168,76,0.1);
+  }
+
+  .modal-story p {
+    font-size: 1rem; line-height: 1.9;
+    color: var(--silver); font-weight: 300;
+    margin-bottom: 1rem;
+  }
+  .modal-story p:last-child { margin-bottom: 0; }
+  .modal-story strong { color: var(--gold-soft); font-weight: 400; }
+  .modal-story em { color: var(--white); font-style: italic; }
+
+  .modal-footnote {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.58rem; color: var(--text-dim);
+    letter-spacing: 0.12em; margin-top: 1.8rem;
+    padding-top: 1.2rem;
+    border-top: 1px solid rgba(201,168,76,0.1);
+  }
+
+  /* Piscis note card */
+  .piscis-note {
+    width: 100%; max-width: 680px;
+    background: rgba(201, 168, 76, 0.04);
+    border: 1px solid rgba(201, 168, 76, 0.15);
+    border-left: 3px solid var(--gold);
+    padding: 1rem 1.4rem;
+    margin-top: 1rem;
+    opacity: 0;
+    animation: fadeUp 1.5s ease forwards 1.6s;
+  }
+  .piscis-note .pn-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.58rem; letter-spacing: 0.2em;
+    color: var(--gold); text-transform: uppercase;
+    margin-bottom: 0.4rem;
+  }
+  .piscis-note .pn-text {
+    font-size: 0.88rem; color: var(--silver);
+    line-height: 1.6; font-style: italic;
+  }
+
+  /* cursor hint on map */
+  .sky-window { cursor: crosshair; }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--sky-deep); }
+  ::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.3); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<canvas id="sky-canvas"></canvas>
+<div class="grain"></div>
+
+<div id="tooltip">
+  <div class="tt-name" id="tt-name"></div>
+  <div class="tt-desc" id="tt-desc"></div>
+</div>
+
+<!-- CONSTELLATION STORY MODAL -->
+<div id="story-modal">
+  <div id="modal-backdrop"></div>
+  <div class="modal-box">
+    <button class="modal-close" id="modal-close">&#x2715;</button>
+    <div class="modal-tag" id="modal-tag">Constelaci&#xF3;n</div>
+    <div class="modal-const-name" id="modal-const-name"></div>
+    <div class="modal-stars-list" id="modal-stars-list"></div>
+    <div class="modal-divider"></div>
+    <div class="modal-story" id="modal-story"></div>
+    <div class="modal-footnote" id="modal-footnote"></div>
+    <div class="modal-close-bar">
+      <button class="modal-close-btn" id="modal-close-bar-btn">cerrar ✕</button>
+    </div>
+  </div>
+</div>
+
+<div class="page">
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="label-small">Chota, Cajamarca &middot; 20 de marzo, 1998 &middot; 06&deg;S 78&deg;W</div>
+    <h1 class="title-main">El cielo de<br><em>Mar&iacute;a</em></h1>
+    <div class="subtitle">la noche en que llegaste al mundo</div>
+  </header>
+
+  <div class="divider"></div>
+
+  <!-- STAR MAP -->
+  <div class="sky-window-wrap">
+    <div class="sky-window-label">
+      <span>&uarr; Norte &middot; pasa el cursor para explorar</span>
+      <span class="sky-click-hint">clic en una estrella &rarr; historia &#x2726;</span>
+    </div>
+    <div class="sky-window">
+      <canvas id="star-map"></canvas>
+    </div>
+  </div>
+
+  <!-- PISCIS NOTE -->
+  <div class="piscis-note">
+    &#x2653; <strong>&iquest;Por qu&eacute; no se ve Piscis?</strong> &mdash; Porque el Sol estaba exactamente ah&iacute;. El 20 de marzo de 1998 era el equinoccio vernal: el Sol cruz&oacute; a Aries justo ese d&iacute;a, eclipsando a Piscis con su luz. La constelaci&oacute;n de tu signo es la &uacute;nica que no puedes ver la noche que naces.
+  </div>
+
+  <!-- DATA STRIP -->
+  <div class="data-strip">
+    <div class="data-cell">
+      <span class="val">20 · III · 1998</span>
+      <span class="key">fecha de nacimiento</span>
+    </div>
+    <div class="data-cell">
+      <span class="val">06°33'S · 78°39'W</span>
+      <span class="key">Chota, Cajamarca</span>
+    </div>
+    <div class="data-cell">
+      <span class="val">Piscis ♓</span>
+      <span class="key">signo solar</span>
+    </div>
+  </div>
+
+  <!-- PLANETS -->
+  <div class="planets-section">
+    <div class="section-label">Planetas esa noche</div>
+    <div class="planets-grid" id="planets-grid"></div>
+  </div>
+
+  <!-- MESSAGE -->
+  <div class="message-section">
+    <div class="msg-label">Un mensaje para ti</div>
+    <div class="msg-body" contenteditable="true" id="message-text">Hace masomenos veintipocos años, bajo este cielo nocturno, en algun lugar del norte Cajamarquino nac&iacute;a una wawita de pies, muchos dicen que eso le trajo mucha suerte, yo lo creo tambi&eacute;n.
+
+Los astros estaban alineados de una manera que nunca se ha repetido desde entonces, y que tampoco se volverá a repetir jamás. Esa noche fue única en la historia del universo.
+
+Igual que tú.
+
+Feliz cumpleaños, <span class="highlight">María</span>. ✨</div>
+    <div class="edit-hint"></div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <div class="footer-sig">Con cariño, el universo y C.</div>
+    <div class="footer-coords">
+      RA 00h 00m · DEC -06°33'<br>
+      J1998.2 · Epoch Vernal Equinox
+    </div>
+  </footer>
+
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+//  BACKGROUND CANVAS — DEEP SPACE NEBULA
+// ═══════════════════════════════════════════════
+(function initBg() {
+  const c = document.getElementById('sky-canvas');
+  const ctx = c.getContext('2d');
+
+  function resize() {
+    c.width = window.innerWidth;
+    c.height = window.innerHeight;
+    draw();
+  }
+
+  function draw() {
+    const w = c.width, h = c.height;
+    ctx.clearRect(0, 0, w, h);
+
+    // Deep gradient
+    const bg = ctx.createRadialGradient(w*0.5, h*0.3, 0, w*0.5, h*0.3, w*0.9);
+    bg.addColorStop(0, '#060d20');
+    bg.addColorStop(0.5, '#040a18');
+    bg.addColorStop(1, '#020510');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, w, h);
+
+    // Nebula glow 1 — blue
+    const n1 = ctx.createRadialGradient(w*0.2, h*0.4, 0, w*0.2, h*0.4, w*0.5);
+    n1.addColorStop(0, 'rgba(40, 80, 140, 0.12)');
+    n1.addColorStop(1, 'transparent');
+    ctx.fillStyle = n1; ctx.fillRect(0, 0, w, h);
+
+    // Nebula glow 2 — gold
+    const n2 = ctx.createRadialGradient(w*0.8, h*0.6, 0, w*0.8, h*0.6, w*0.45);
+    n2.addColorStop(0, 'rgba(120, 80, 20, 0.08)');
+    n2.addColorStop(1, 'transparent');
+    ctx.fillStyle = n2; ctx.fillRect(0, 0, w, h);
+
+    // Tiny background stars
+    const rng = mulberry32(42);
+    for (let i = 0; i < 320; i++) {
+      const x = rng() * w;
+      const y = rng() * h;
+      const r = rng() * 0.8 + 0.2;
+      const a = rng() * 0.5 + 0.1;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI*2);
+      ctx.fillStyle = `rgba(200, 210, 230, ${a})`;
+      ctx.fill();
+    }
+  }
+
+  function mulberry32(seed) {
+    return function() {
+      seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+      let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+
+  window.addEventListener('resize', resize);
+  resize();
+})();
+
+
+// ═══════════════════════════════════════════════
+//  STAR MAP — Astronomy calculation
+//  Date: 20 March 1998, 22:00 LT → UTC-5 = 03:00 UT 21 Mar
+//  Location: Chota, Cajamarca, Peru
+//  Lat: -6.55°, Lon: -78.65°
+// ═══════════════════════════════════════════════
+(function initStarMap() {
+  const canvas = document.getElementById('star-map');
+  const ctx = canvas.getContext('2d');
+  const tooltip = document.getElementById('tooltip');
+  const ttName = document.getElementById('tt-name');
+  const ttDesc = document.getElementById('tt-desc');
+
+  const LAT_RAD = -6.55 * Math.PI / 180;
+  const LST = 11.2; // Local Sidereal Time in hours (~22:00 LT on March 20)
+
+  function resize() {
+    const box = canvas.parentElement.getBoundingClientRect();
+    canvas.width = box.width;
+    canvas.height = box.height;
+    render();
+  }
+
+  // Convert RA/Dec to canvas x,y using stereographic projection
+  function radecToXY(ra_h, dec_deg, W, H) {
+    const ha = (LST - ra_h) * 15 * Math.PI / 180; // Hour Angle in radians
+    const dec = dec_deg * Math.PI / 180;
+
+    // Altitude / Azimuth
+    const sinAlt = Math.sin(dec)*Math.sin(LAT_RAD) + Math.cos(dec)*Math.cos(LAT_RAD)*Math.cos(ha);
+    const alt = Math.asin(Math.max(-1, Math.min(1, sinAlt)));
+    const cosAz = (Math.sin(dec) - Math.sin(alt)*Math.sin(LAT_RAD)) / (Math.cos(alt)*Math.cos(LAT_RAD));
+    const az = Math.atan2(-Math.sin(ha)*Math.cos(dec), cosAz - 0.0001);
+
+    if (alt < -0.1) return null; // Below horizon
+
+    const r = (W/2) * Math.cos(alt) / (1 + Math.sin(alt));
+    const x = W/2 + r * Math.sin(az);
+    const y = H/2 - r * Math.cos(az);
+    return { x, y, alt: alt * 180 / Math.PI };
+  }
+
+  // Yale Bright Star catalog subset (RA in hours, Dec in degrees, magnitude, name)
+  const stars = [
+    // Southern Cross
+    [12.443, -63.09, 0.77, 'Acrux',     'Cruz del Sur'],
+    [12.795, -59.69, 1.25, 'Mimosa',    'Cruz del Sur'],
+    [12.519, -57.11, 1.59, 'Gacrux',    'Cruz del Sur'],
+    [12.352, -60.40, 2.79, 'δ Crucis',  'Cruz del Sur'],
+
+    // Centaurus
+    [14.660, -60.83, -0.27,'α Centauri','Centauro'],
+    [14.064, -60.37, 0.60, 'β Centauri','Centauro'],
+    [13.664, -53.47, 2.06, 'ε Centauri','Centauro'],
+    [13.925, -47.29, 2.17, 'η Centauri','Centauro'],
+
+    // Canis Major
+    [6.752, -16.72, -1.46, 'Sirio',     'Can Mayor'],
+    [7.401, -29.30, 1.50,  'Adhara',    'Can Mayor'],
+    [6.378, -17.96, 1.84,  'Wezen',     'Can Mayor'],
+
+    // Orion (setting in west)
+    [5.919, 7.41,   0.12,  'Rigel',     'Orión'],
+    [5.533, -0.30,  1.69,  'Mintaka',   'Orión'],
+    [5.603, -1.20,  1.74,  'Alnilam',   'Orión'],
+    [5.679, -1.94,  2.23,  'Alnitak',   'Orión'],
+    [5.242, -8.20,  0.45,  'Betelgeuse','Orión'],
+    [5.795, -9.67,  2.07,  'Saiph',     'Orión'],
+
+    // Scorpius (rising in east)
+    [16.490, -26.43, 1.06, 'Antares',   'Escorpio'],
+    [16.005, -22.62, 2.29, 'Graffias',  'Escorpio'],
+    [16.352, -28.22, 2.82, 'δ Scorpii', 'Escorpio'],
+    [17.622, -43.00, 1.62, 'Shaula',    'Escorpio'],
+    [17.708, -39.03, 2.69, 'Lesath',    'Escorpio'],
+
+    // Vela
+    [9.133, -43.43, 1.75,  'γ Velorum', 'Vela'],
+    [8.745, -54.71, 1.96,  'δ Velorum', 'Vela'],
+    [9.368, -55.01, 2.21,  'κ Velorum', 'Vela'],
+
+    // Carina
+    [6.399, -52.70, -0.72, 'Canopo',    'Carina'],
+    [9.220, -69.72, 1.67,  'β Carinae', 'Carina'],
+
+    // Hydra
+    [9.460, -8.66,  1.98,  'Alphard',   'Hidra'],
+
+    // Leo (overhead)
+    [10.140, 11.97, 1.35,  'Régulo',    'Leo'],
+    [11.235, 15.43, 2.14,  'Denébola',  'Leo'],
+    [10.333, 19.84, 2.01,  'Algieba',   'Leo'],
+    [10.123, 16.77, 2.56,  'Zosma',     'Leo'],
+
+    // Virgo (rising east)
+    [13.420, -11.16, 0.98, 'Espiga',    'Virgo'],
+    [12.694, -1.45,  2.75, 'Porrima',   'Virgo'],
+
+    // Crater / Corvus
+    [12.168, -22.62, 2.59, 'Algorab',   'Cuervo'],
+    [12.498, -16.52, 2.65, 'Gienah',    'Cuervo'],
+
+    // Misc bright
+    [7.655, 5.22,   0.40,  'Proción',   'Can Menor'],
+    [7.577, 31.89,  1.93,  'Castor',    'Géminis'],
+    [7.755, 28.03,  1.14,  'Pólux',     'Géminis'],
+    [5.278, 45.99,  0.08,  'Capella',   'Auriga'],
+    [3.791, 24.11,  0.85,  'Aldebaran', 'Tauro'],
+    [14.845, 74.16, 2.08,  'Kochab',    'Osa Menor'],
+  ];
+
+  // Constellation line data [starIndex pairs]
+  const constellationLines = {
+    'Cruz del Sur':  [[0,1],[1,2],[2,3],[3,0]],
+    'Can Mayor':     [[6,7],[6,8]],
+    'Orión':         [[11,12],[12,13],[13,14],[11,15],[14,16],[12,16],[13,16]],
+    'Escorpio':      [[17,18],[18,19],[19,20],[20,21]],
+    'Leo':           [[27,28],[28,29],[29,30]],
+  };
+
+  let hoveredConstellation = null;
+  let hoveredPlanet = null;
+
+  // ── PLANETS VISIBLE ON THE MAP (RA in hours, Dec in degrees) ──
+  // Positions for 20 March 1998 22:00 LT from Chota
+  const mapPlanets = [
+    { ra: 22.1,  dec: -12.0, name: 'Venus',   symbol: '♀', color: '255, 240, 180', mag: -4.1,
+      tip: 'Venus — brillando al oeste, imposible de ignorar' },
+    { ra: 4.2,   dec:  18.5, name: 'Marte',   symbol: '♂', color: '255, 140, 80',  mag:  1.1,
+      tip: 'Marte — junto a las Pléyades en Tauro, color rojizo' },
+    { ra: 22.4,  dec: -11.0, name: 'Júpiter', symbol: '♃', color: '220, 200, 160', mag: -2.3,
+      tip: 'Júpiter — compañero de Venus al oeste, el más brillante del grupo' },
+    { ra: 0.6,   dec:  2.5,  name: 'Luna',    symbol: '☽', color: '230, 230, 255', mag: -9.0,
+      tip: 'Luna gibosa creciente — dominando el cielo occidental' },
+  ];
+
+  // ── CONSTELLATION STORIES ──
+  const stories = {
+    'Cruz del Sur': {
+      tag: 'Constelacion del Hemisferio Sur',
+      footnote: 'Visible todo el año desde Chota · Altitud maxima esa noche: ~60° sur',
+      story: '<p>Cuando los primeros navegantes europeos cruzaron el ecuador y vieron esta cruz de cuatro estrellas, creyeron que Dios les enviaba una señal. Los pueblos andinos ya la conocian desde siempre: la llamaban <strong>Chakana</strong>, la escalera cosmica que conecta el mundo de arriba con el de abajo.</p><p>La noche que Maria nacio, la Cruz del Sur brillaba muy alta sobre los Andes de Cajamarca. Sus cuatro estrellas —Acrux, Mimosa, Gacrux y Decrucis— formaban una cruz perfecta sobre las montañas.</p><p>Es la constelacion mas pequeña del cielo, pero la mas brillante por unidad de area. Pequeña, intensa, inconfundible. Como ciertas personas.</p>'
+    },
+    'Centauro': {
+      tag: 'El vecino mas cercano',
+      footnote: 'Alpha Centauri: 4.24 años luz · La estrella mas cercana al Sol',
+      story: '<p>Alpha Centauri es la estrella mas cercana a nuestro Sol. Si la luz tarda 4.24 años en llegar a la Tierra, entonces <strong>la luz que brillaba esa noche de marzo de 1998 salio de Alpha Centauri en 1993</strong>, cuando Maria aun no habia nacido.</p><p>Lo que brilla no es el presente. Es siempre el pasado viajando hacia ti.</p><p>El Centauro de la mitologia era Quiron, el mas sabio de todos los centauros, maestro de Aquiles y Jason. A diferencia de sus hermanos salvajes, era medico, musico y filosofo. La constelacion lleva su nombre como homenaje a la sabiduria que puede vivir incluso en las criaturas mas inesperadas.</p>'
+    },
+    'Can Mayor': {
+      tag: 'El perro del cazador',
+      footnote: 'Sirio: la estrella mas brillante del cielo nocturno · mag. −1.46',
+      story: '<p>Sirio. La estrella mas brillante que puede verse desde la Tierra. No porque sea la mas grande del universo, sino porque es una de las mas cercanas: esta a solo 8.6 años luz. Su nombre viene del griego <em>Seirios</em>: <strong>ardiente, abrasador</strong>.</p><p>Los egipcios organizaban todo su calendario alrededor de Sirio. Cuando aparecia en el horizonte al amanecer, sabian que el Nilo estaba a punto de inundarse y fertilizar sus campos. Una estrella que marcaba el tiempo del mundo.</p><p>La noche del 20 de marzo de 1998, Sirio brillaba al oeste de Chota, descendiendo lentamente. Su luz —partida hace 8 años— llegaba a los ojos de todos los que miraban el cielo sobre los Andes.</p>'
+    },
+    'Orión': {
+      tag: 'El gran cazador',
+      footnote: 'Betelgeuse es una supergigante roja 700 veces mas grande que el Sol',
+      story: '<p>Orion es quizas la constelacion mas reconocida de la humanidad. Sus tres estrellas en linea recta —el Cinturon de Orion— aparecen en mitos de culturas que nunca tuvieron contacto entre si: los egipcios, los mayas, los griegos, los pueblos de Mongolia.</p><p>Hay algo en esa linea perfecta de tres puntos que el cerebro humano reconoce instintivamente como diseño, como intencion, como mensaje.</p><p><strong>Betelgeuse</strong>, la estrella del hombro derecho, ya esta en sus ultimas etapas de vida. En algun momento explotara en una supernova visible de dia. Esa noche de 1998, todavia brillaba tranquila al oeste de Chota, sin apuro.</p>'
+    },
+    'Escorpio': {
+      tag: 'El escorpion de verano',
+      footnote: 'Antares: supergigante roja · 700 veces mas grande que el Sol',
+      story: '<p>Escorpio y Orion son enemigos eternos en la mitologia griega. Por eso el cielo los separo: cuando Escorpio sube por el este, Orion se esconde por el oeste. Nunca comparten el mismo horizonte al mismo tiempo.</p><p>La noche del 20 de marzo de 1998, Escorpio <strong>estaba ascendiendo por el este</strong> mientras Maria llegaba al mundo. Su estrella principal, Antares, tiene un nombre que significa "rival de Marte" — porque su color rojo los hace casi indistinguibles.</p><p>En los Andes, los pueblos quechuas veian en las zonas oscuras de la Via Lactea —no en las estrellas— las figuras de sus constelaciones: la llama, el zorro, la serpiente. Un sistema de ver el universo completamente distinto, igualmente hermoso.</p>'
+    },
+    'Leo': {
+      tag: 'El rey del cielo de otoño',
+      footnote: 'Regulo: a 79 años luz · Leo dominaba el cenit esa noche desde Chota',
+      story: '<p>Leo era la constelacion mas alta en el cielo de Chota la noche del 20 de marzo. Su estrella principal, <strong>Regulo</strong>, significa "pequeño rey" en latin. Esta a 79 años luz: la luz que brillaba esa noche salio de Regulo en 1919, cuando el Peru era un mundo completamente diferente.</p><p>Para los egipcios, el Sol nacia junto a Leo durante las crecidas del Nilo, asociando al leon con el poder vital, con la fuerza de lo que comienza. Para los griegos, era el Leon de Nemea, el primero de los doce trabajos de Hercules.</p><p>Leo brillando en el cenit esa noche es una imagen hermosa: el rey del cielo, directamente sobre la cabeza de una recien nacida en los Andes del Peru.</p>'
+    },
+    'Carina': {
+      tag: 'La quilla del Argo',
+      footnote: 'Canopo: segunda estrella mas brillante del cielo · mag. −0.72',
+      story: '<p>Canopo es la segunda estrella mas brillante del cielo nocturno, solo superada por Sirio. Y sin embargo, en el hemisferio norte casi no se conoce: esta tan al sur que desde Europa o Estados Unidos nunca se puede ver.</p><p>Es una de las estrellas "ocultas" del mundo. Visible solo para quienes vivimos al sur del ecuador. <strong>Desde Chota, Canopo brilla con claridad</strong>. Desde los Andes altos, se ve perfectamente.</p><p>Carina era parte de una constelacion enorme llamada Argo Navis, el barco de los argonautas. Era tan grande que los astronomos la dividieron en tres: Carina (la quilla), Puppis (la popa) y Vela (las velas). El barco mas grande del cielo, partido en tres para que cupiera.</p>'
+    },
+    'Virgo': {
+      tag: 'La diosa de la cosecha',
+      footnote: 'Espiga (Spica): a 250 años luz · una de las estrellas mas calientes visibles',
+      story: '<p>Espiga, la estrella principal de Virgo, fue una de las mas importantes en la historia de la astronomia. El astronomo Hiparco la uso en el siglo II a.C. para descubrir la <em>precesion de los equinoccios</em>: el lentisimo bamboleo del eje terrestre que hace que las constelaciones "se muevan" unos grados cada 26,000 años.</p><p>En otras palabras: gracias a Espiga, la humanidad entendio que el cielo no es fijo. Que el universo tambien baila.</p><p><strong>La noche del 20 de marzo de 1998</strong>, Virgo estaba ascendiendo por el este. Era otoño en el hemisferio sur, y Virgo —diosa de la cosecha— anunciaba la temporada de recoger lo sembrado.</p>'
+    },
+    'Can Menor': {
+      tag: 'El perro pequeño',
+      footnote: 'Procyon: a 11.4 años luz · una de las estrellas mas cercanas',
+      story: '<p>Procyon significa "antes del perro" en griego: siempre sale minutos antes que Sirio, como un heraldo anunciando la llegada del rey. Es una de las estrellas mas cercanas a la Tierra: a solo 11.4 años luz.</p><p>La luz de Procyon que brillaba esa noche sobre Chota salio en <strong>1986</strong>, cuando el cometa Halley pasaba cerca de la Tierra por ultima vez en el siglo XX.</p><p>Can Menor es una constelacion de solo dos estrellas visibles. Minimalista al extremo. Pero Procyon es tan brillante que nadie la ignora.</p>'
+    },
+    'Geminis': {
+      tag: 'Los gemelos divinos',
+      footnote: 'Castor y Polux · visibles al oeste esa noche, acercandose al horizonte',
+      story: '<p>Castor y Polux: los hermanos inseparables. En la mitologia, eran hijos de Zeus, pero de distinta naturaleza — Polux era inmortal, Castor mortal. Cuando Castor murio, Polux pidio a los dioses compartir su inmortalidad con su hermano. Zeus los coloco juntos en el cielo para siempre.</p><p>Lo curioso es que astronomicamente, <strong>Castor no es una estrella sino seis</strong>: tres pares de estrellas binarias que orbitan entre si en una danza gravitacional compleja. Lo que parece un punto de luz es en realidad un sistema de seis soles.</p><p>La noche del 20 de marzo de 1998, Geminis se estaba poniendo al oeste. Los dos hermanos, descendiendo juntos sobre el horizonte andino.</p>'
+    },
+    'Hidra': {
+      tag: 'La serpiente de agua',
+      footnote: 'La constelacion mas extensa del cielo · abarca 1303 grados cuadrados',
+      story: '<p>Hidra es la constelacion mas grande del cielo: se extiende por mas de un cuarto del ecuador celeste. Sin embargo, es una de las mas dificiles de reconocer, porque sus estrellas son tenues y dispersas.</p><p>En la mitologia griega, la Hidra era el monstruo de nueve cabezas que Hercules debia matar como segundo trabajo. El problema: cada vez que le cortaba una cabeza, le crecian dos. La solucion fue cauterizar cada herida con fuego.</p><p><strong>Alphard</strong>, su unica estrella brillante, tiene un nombre arabe que significa "la solitaria". Brilla sola en una region del cielo inusualmente vacia. Una estrella que aprendio a destacar sin vecinos.</p>'
+    },
+    'Cuervo': {
+      tag: 'El cuervo de Apolo',
+      footnote: 'Cuatro estrellas que forman un trapezoide · visible al sur esa noche',
+      story: '<p>Cuenta la leyenda que Apolo envio a su cuervo a buscar agua con una copa. El cuervo encontro una higuera cargada de frutos y se quedo esperando a que maduraran, olvidando su mision. Cuando regreso, invento una excusa: una serpiente le habia bloqueado el camino.</p><p>Apolo, dios del sol y la verdad, no fue engañado. Como castigo, lanzo al cuervo, la copa y la serpiente al cielo, condenandolos a estar juntos para siempre: el Cuervo (Corvus), la Copa (Crater) y la Hidra.</p><p><strong>La moraleja que los griegos pusieron en el cielo</strong>: la deshonestidad tiene consecuencias que duran eternidades.</p>'
+    },
+    'Auriga': {
+      tag: 'El cochero celeste',
+      footnote: 'Capella: sexta estrella mas brillante del cielo · bajando al noroeste',
+      story: '<p>Capella, la estrella principal de Auriga, guarda un secreto: en realidad son dos estrellas gigantes amarillas que orbitan tan cerca la una de la otra que ningun telescopio puede separarlas visualmente. Dos soles gemelos que danzan entre si cada 104 dias.</p><p>El Auriga mitologico era Erictonio, hijo de Hefesto, quien invento el carro de cuatro caballos a pesar de ser paralitico. La voluntad de moverse cuando el cuerpo dice que no.</p><p>La noche del 20 de marzo de 1998, <strong>Capella estaba descendiendo al noroeste</strong>. Una de las pocas estrellas brillantes del norte visible desde los Andes peruanos.</p>'
+    },
+    'Tauro': {
+      tag: 'El toro celeste',
+      footnote: 'Aldebarun: gigante roja · 65 años luz · bajando al oeste esa noche',
+      story: '<p>Aldebarun significa "el seguidor" en arabe: siempre sigue a las Pleiades por el cielo. Es un gigante rojo 44 veces mas grande que nuestro Sol. Si estuviera donde esta el Sol, su superficie llegaria casi hasta la orbita de Mercurio.</p><p>Los quechuas llamaban a las Pleiades <strong>Qollqa</strong>, el granero, y las usaban para planificar la agricultura. Las Pleiades marcaban el comienzo y el fin de las temporadas de siembra en los Andes.</p><p>La noche que Maria nacio, Tauro se estaba poniendo por el oeste, llevandose sus Pleiades hacia el horizonte de los Andes de Cajamarca.</p>'
+    },
+    'Vela': {
+      tag: 'Las velas del Argo',
+      footnote: 'Parte del antiguo Argo Navis · visible desde el hemisferio sur',
+      story: '<p>Vela eran las velas del Argo, el barco mitico de los argonautas que buscaban el Vellocino de Oro. Junto con Carina y Puppis, forman los restos de la constelacion mas grande que existio: Argo Navis.</p><p>Nicolas Louis de Lacaille la dividio en tres en 1752 porque era demasiado extensa para manejarse como una sola constelacion. El barco sobrevive fragmentado, como muchas cosas grandes que el tiempo parte.</p><p>La noche del 20 de marzo de 1998, <strong>Vela brillaba al sur de Chota</strong>, alta sobre los Andes. Sus estrellas, tenues individualmente, formaban juntas un patron recognocible: las velas de un barco que nunca llego a puerto pero que tampoco dejo de navegar.</p>'
+    }
+  };
+
+  function render() {
+    const W = canvas.width, H = canvas.height;
+    ctx.clearRect(0, 0, W, H);
+
+    // Background circle
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(W/2, H/2, W/2, 0, Math.PI*2);
+    ctx.clip();
+
+    // Sky gradient
+    const skyGrad = ctx.createRadialGradient(W/2, H/2, 0, W/2, H/2, W/2);
+    skyGrad.addColorStop(0, '#0c1428');
+    skyGrad.addColorStop(0.6, '#060d1e');
+    skyGrad.addColorStop(1, '#020814');
+    ctx.fillStyle = skyGrad;
+    ctx.fillRect(0, 0, W, H);
+
+    // Milky Way band (simulated) — arc from south to east
+    const mw = ctx.createLinearGradient(W*0.3, H*0.9, W*0.8, H*0.1);
+    mw.addColorStop(0, 'rgba(80, 100, 160, 0.04)');
+    mw.addColorStop(0.5, 'rgba(100, 120, 180, 0.08)');
+    mw.addColorStop(1, 'rgba(60, 80, 140, 0.03)');
+    ctx.fillStyle = mw;
+    ctx.fillRect(0, 0, W, H);
+
+    // Compute all star positions
+    const positions = stars.map(s => ({
+      xy: radecToXY(s[0], s[1], W, H),
+      mag: s[2],
+      name: s[3],
+      const: s[4]
+    }));
+
+    // Draw constellation lines
+    Object.entries(constellationLines).forEach(([cname, pairs]) => {
+      const isHovered = hoveredConstellation === cname;
+      pairs.forEach(([ai, bi]) => {
+        const a = positions[ai], b = positions[bi];
+        if (!a.xy || !b.xy) return;
+        ctx.beginPath();
+        ctx.moveTo(a.xy.x, a.xy.y);
+        ctx.lineTo(b.xy.x, b.xy.y);
+        ctx.strokeStyle = isHovered
+          ? 'rgba(201, 168, 76, 0.6)'
+          : 'rgba(100, 130, 180, 0.22)';
+        ctx.lineWidth = isHovered ? 1.2 : 0.7;
+        ctx.stroke();
+      });
+    });
+
+    // Draw stars
+    positions.forEach(p => {
+      if (!p.xy) return;
+      const isHovered = hoveredConstellation === p.const;
+      const size = Math.max(0.5, (5.5 - p.mag) * 0.7);
+
+      // Glow for bright stars
+      if (p.mag < 1.5) {
+        const glow = ctx.createRadialGradient(p.xy.x, p.xy.y, 0, p.xy.x, p.xy.y, size * 4);
+        const col = isHovered ? '201, 168, 76' : '180, 200, 240';
+        glow.addColorStop(0, `rgba(${col}, 0.3)`);
+        glow.addColorStop(1, 'transparent');
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(p.xy.x, p.xy.y, size * 4, 0, Math.PI*2);
+        ctx.fill();
+      }
+
+      // Star dot
+      ctx.beginPath();
+      ctx.arc(p.xy.x, p.xy.y, size, 0, Math.PI*2);
+      if (isHovered) {
+        ctx.fillStyle = 'rgb(230, 200, 130)';
+      } else {
+        const brightness = Math.min(255, 180 + (2 - p.mag) * 30);
+        ctx.fillStyle = `rgb(${brightness}, ${brightness}, 255)`;
+      }
+      ctx.fill();
+    });
+
+    // Constellation name labels
+    const labeledConsts = new Set();
+    positions.forEach(p => {
+      if (!p.xy || labeledConsts.has(p.const)) return;
+      const isHovered = hoveredConstellation === p.const;
+      if (!isHovered) return;
+      labeledConsts.add(p.const);
+      ctx.font = '500 0.65rem Space Mono, monospace';
+      ctx.fillStyle = 'rgba(201, 168, 76, 0.9)';
+      ctx.fillText(p.const.toUpperCase(), p.xy.x + 8, p.xy.y - 6);
+    });
+
+    // Zenith dot
+    ctx.beginPath();
+    ctx.arc(W/2, H/2, 3, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(201, 168, 76, 0.4)';
+    ctx.fill();
+
+    // Horizon ring
+    ctx.beginPath();
+    ctx.arc(W/2, H/2, W/2 - 1, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(201, 168, 76, 0.15)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Cardinal labels
+    ctx.font = '400 0.6rem Space Mono, monospace';
+    ctx.fillStyle = 'rgba(201, 168, 76, 0.4)';
+    ctx.textAlign = 'center';
+    const pad = 18;
+    ctx.fillText('N', W/2, pad);
+    ctx.fillText('S', W/2, H - pad + 12);
+    ctx.textAlign = 'left';
+    ctx.fillText('O', pad, H/2 + 4);
+    ctx.textAlign = 'right';
+    ctx.fillText('E', W - pad, H/2 + 4);
+
+    // ── DRAW PLANETS ──
+    mapPlanets.forEach(pl => {
+      const pos = radecToXY(pl.ra, pl.dec, W, H);
+      if (!pos) return;
+      const isHov = hoveredPlanet === pl.name;
+      const r = Math.max(3, (5.5 - pl.mag) * 0.4);
+      const displayR = Math.min(r, pl.name === 'Luna' ? 9 : 7);
+
+      // Outer glow
+      const glow = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, displayR * 3.5);
+      glow.addColorStop(0, `rgba(${pl.color}, ${isHov ? 0.5 : 0.25})`);
+      glow.addColorStop(1, 'transparent');
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(pos.x, pos.y, displayR * 3.5, 0, Math.PI*2);
+      ctx.fill();
+
+      // Planet disc
+      ctx.beginPath();
+      ctx.arc(pos.x, pos.y, displayR, 0, Math.PI*2);
+      ctx.fillStyle = `rgba(${pl.color}, ${isHov ? 1 : 0.85})`;
+      ctx.fill();
+
+      // Hover ring
+      if (isHov) {
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, displayR + 3, 0, Math.PI*2);
+        ctx.strokeStyle = `rgba(${pl.color}, 0.6)`;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+
+      // Symbol label
+      ctx.font = `${isHov ? 'bold' : '400'} ${displayR > 5 ? '0.65rem' : '0.55rem'} Space Mono, monospace`;
+      ctx.fillStyle = isHov ? `rgba(${pl.color}, 1)` : `rgba(${pl.color}, 0.7)`;
+      ctx.textAlign = 'left';
+      ctx.fillText(pl.symbol + ' ' + pl.name, pos.x + displayR + 4, pos.y + 4);
+    });
+
+    ctx.restore();
+  }
+
+  // ── MODAL LOGIC ──
+  const modal = document.getElementById('story-modal');
+  const modalClose = document.querySelector('.modal-close');
+  const modalCloseBar = document.getElementById('modal-close-bar-btn');
+  const modalBackdrop = document.getElementById('modal-backdrop');
+
+  function openModal(constName) {
+    const s = stories[constName];
+    if (!s) return;
+    document.getElementById('modal-tag').textContent = s.tag;
+    document.getElementById('modal-const-name').innerHTML = constName;
+    document.querySelector('.modal-stars-list').textContent =
+      stars.filter(st => st[4] === constName).map(st => st[3]).join(' · ');
+    document.getElementById('modal-story').innerHTML = s.story;
+    document.getElementById('modal-footnote').textContent = s.footnote;
+    modal.classList.add('open');
+    // scroll modal box to top each time
+    const box = modal.querySelector('.modal-box');
+    if (box) box.scrollTop = 0;
+  }
+
+  function closeModal() { modal.classList.remove('open'); }
+
+  modalClose.addEventListener('click', closeModal);
+  if (modalCloseBar) modalCloseBar.addEventListener('click', closeModal);
+  modalBackdrop.addEventListener('click', closeModal);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+  canvas.addEventListener('click', e => {
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    const W = canvas.width, H = canvas.height;
+    const positions = stars.map(s => ({
+      xy: radecToXY(s[0], s[1], W, H),
+      mag: s[2], name: s[3], const: s[4]
+    }));
+    let found = null;
+    positions.forEach(p => {
+      if (!p.xy) return;
+      const size = Math.max(1, (5.5 - p.mag) * 0.7);
+      const dx = p.xy.x - mx, dy = p.xy.y - my;
+      if (Math.sqrt(dx*dx + dy*dy) < size + 12) found = p;
+    });
+    if (found && stories[found.const]) openModal(found.const);
+  });
+
+  // Mouse interaction
+  canvas.addEventListener('mousemove', e => {
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    const W = canvas.width, H = canvas.height;
+
+    // Check planet hover first
+    let foundPlanet = null;
+    mapPlanets.forEach(pl => {
+      const pos = radecToXY(pl.ra, pl.dec, W, H);
+      if (!pos) return;
+      const dx = pos.x - mx, dy = pos.y - my;
+      if (Math.sqrt(dx*dx + dy*dy) < 14) foundPlanet = pl;
+    });
+
+    if (foundPlanet) {
+      hoveredPlanet = foundPlanet.name;
+      hoveredConstellation = null;
+      ttName.textContent = foundPlanet.symbol + ' ' + foundPlanet.name;
+      ttDesc.textContent = foundPlanet.tip;
+      tooltip.style.opacity = '1';
+      tooltip.style.left = (e.clientX + 14) + 'px';
+      tooltip.style.top = (e.clientY - 40) + 'px';
+      render();
+      return;
+    }
+
+    let found = null;
+    const positions = stars.map(s => ({
+      xy: radecToXY(s[0], s[1], W, H),
+      mag: s[2],
+      name: s[3],
+      const: s[4]
+    }));
+
+    positions.forEach(p => {
+      if (!p.xy) return;
+      const size = Math.max(1, (5.5 - p.mag) * 0.7);
+      const dx = p.xy.x - mx, dy = p.xy.y - my;
+      if (Math.sqrt(dx*dx + dy*dy) < size + 8) found = p;
+    });
+
+    if (found) {
+      hoveredConstellation = found.const;
+      hoveredPlanet = null;
+      ttName.textContent = found.name + ' · ' + found.const;
+
+      const constDescriptions = {
+        'Cruz del Sur': 'Guía ancestral de los navegantes del sur. En 1998 brillaba altísima sobre los Andes.',
+        'Can Mayor': 'Hogar de Sirio, la estrella más brillante del cielo nocturno.',
+        'Orión': 'El cazador eterno, visiblee al oeste aquella noche de otoño.',
+        'Escorpio': 'Ascendiendo en el este mientras tú llegabas al mundo.',
+        'Leo': 'El león celeste brillaba casi en el cénit de Chota esa noche.',
+        'Centauro': 'Tus vecinos más cercanos: Alpha Centauri está a solo 4.2 años luz.',
+        'Carina': 'Canopo, la segunda estrella más brillante del cielo visible.',
+        'Virgo': 'La diosa de la cosecha, anunciando la primavera del hemisferio norte.',
+        'Hidra': 'La serpiente de agua, la constelación más extensa del cielo.',
+        'Vela': 'Parte del antiguo Argo, el barco de los argonautas.',
+        'Can Menor': 'Proción, la pequeña guardiana de Sirio.',
+        'Géminis': 'Los gemelos divinos, en el ocaso esa noche.',
+        'Auriga': 'El cochero celeste, portador de estrellas del norte.',
+        'Tauro': 'Aldebarán, el ojo rojo del toro, despidiéndose al oeste.',
+        'Osa Menor': 'La estrella polar, faro inmóvil del norte.',
+        'Cuervo': 'El cuervo de Apolo, buscador de verdades.',
+      };
+
+      ttDesc.textContent = constDescriptions[found.const] || found.const;
+      tooltip.style.opacity = '1';
+      tooltip.style.left = (e.clientX + 14) + 'px';
+      tooltip.style.top = (e.clientY - 40) + 'px';
+    } else {
+      hoveredConstellation = null;
+      hoveredPlanet = null;
+      tooltip.style.opacity = '0';
+    }
+    render();
+  });
+
+  canvas.addEventListener('mouseleave', () => {
+    hoveredConstellation = null;
+    hoveredPlanet = null;
+    tooltip.style.opacity = '0';
+    render();
+  });
+
+  window.addEventListener('resize', resize);
+  resize();
+})();
+
+
+// ═══════════════════════════════════════════════
+//  PLANET DATA — 20 March 1998
+// ═══════════════════════════════════════════════
+(function renderPlanets() {
+  const planets = [
+    { symbol: '☀', name: 'Sol', pos: 'Piscis → Aries', note: 'Equinoccio vernal. El Sol cruzó el ecuador celeste ese día.' },
+    { symbol: '☽', name: 'Luna', pos: 'Cáncer', note: 'Luna gibosa creciente, visible en el oeste al atardecer.' },
+    { symbol: '♀', name: 'Venus', pos: 'Acuario', note: 'Visible al poniente, la estrella de la tarde.' },
+    { symbol: '♂', name: 'Marte', pos: 'Tauro', note: 'Cerca de las Pléyades, brillante en el oeste.' },
+    { symbol: '♃', name: 'Júpiter', pos: 'Acuario', note: 'El planeta más grande, compañero de Venus.' },
+    { symbol: '♄', name: 'Saturno', pos: 'Aries', note: 'Muy cerca del Sol, invisible esa noche.' },
+  ];
+
+  const grid = document.getElementById('planets-grid');
+  planets.forEach(p => {
+    const div = document.createElement('div');
+    div.className = 'planet-card';
+    div.innerHTML = `
+      <span class="p-symbol">${p.symbol}</span>
+      <span class="p-name">${p.name}</span>
+      <div class="p-pos">${p.pos}</div>
+      <div class="p-note">${p.note}</div>
+    `;
+    grid.appendChild(div);
+  });
+})();
+</script>
+
+</body>
+</html>
